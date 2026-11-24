@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String   @id @default(uuid())
+  username           String   @unique
+  sessionToken       String   @unique
+  balance            Decimal  @default(0) @db.Decimal(38, 2)
+  lifetimeEarnings   Decimal  @default(0) @db.Decimal(38, 2)
+  incomePerSecond    Decimal  @default(0) @db.Decimal(38, 2)
+  prestigeMultiplier Decimal  @default(1) @db.Decimal(18, 4)
+  rebirthCount       Int      @default(0)
+  lastSyncedAt       DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  businesses     UserBusiness[]
+  upgrades       UserUpgrade[]
+  rebirthHistory RebirthHistory[]
+
+  @@map("users")
+}
+
+model Business {
+  id             Int     @id @default(autoincrement())
+  slug           String  @unique
+  name           String
+  baseCost       Decimal @db.Decimal(38, 2)
+  costMultiplier Decimal @db.Decimal(10, 4)
+  baseIncome     Decimal @db.Decimal(38, 2)
+  sortOrder      Int
+
+  owners   UserBusiness[]
+  upgrades Upgrade[]
+
+  @@map("businesses")
+}
+
+model UserBusiness {
+  id         String   @id @default(uuid())
+  userId     String
+  businessId Int
+  quantity   Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, businessId])
+  @@map("user_businesses")
+}
+
+model Upgrade {
+  id          Int     @id @default(autoincrement())
+  slug        String  @unique
+  name        String
+  description String
+  cost        Decimal @db.Decimal(38, 2)
+  multiplier  Decimal @db.Decimal(10, 2)
+  businessId  Int?
+
+  business Business?     @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  owners   UserUpgrade[]
+
+  @@map("upgrades")
+}
+
+model UserUpgrade {
+  id          String   @id @default(uuid())
+  userId      String
+  upgradeId   Int
+  purchasedAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  upgrade Upgrade @relation(fields: [upgradeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, upgradeId])
+  @@map("user_upgrades")
+}
+
+model RebirthHistory {
+  id                 String   @id @default(uuid())
+  userId             String
+  rebirthNumber      Int
+  earningsAtRebirth  Decimal  @db.Decimal(38, 2)
+  multiplierGained   Decimal  @db.Decimal(18, 4)
+  newTotalMultiplier Decimal  @db.Decimal(18, 4)
+  createdAt          DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, rebirthNumber])
+  @@map("rebirth_histories")
+}
